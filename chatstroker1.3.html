@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LM‑Studio Chat UI + Handy HDSP</title>
+<style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+        font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+        background:#0e1117;color:#c9d1d9;
+        display:flex;flex-direction:column;align-items:center;
+        padding:20px;min-height:100vh;
+    }
+    #wrapper{max-width:860px;width:100%;}
+
+    h2{
+        font-size:14px;text-transform:uppercase;letter-spacing:1.5px;
+        color:#58a6ff;margin-bottom:12px;font-weight:600;
+    }
+
+    .section{
+        background:#161b22;border:1px solid #30363d;border-radius:8px;
+        padding:18px;margin-bottom:16px;
+    }
+    .section.disabled{opacity:.45;pointer-events:none;}
+
+    label{display:block;margin-top:10px;font-size:13px;color:#8b949e;}
+    label:first-of-type{margin-top:0;}
+
+    textarea,input[type=text],input[type=number],input[type=range]{
+        width:100%;padding:8px 10px;margin-top:4px;
+        background:#0d1117;border:1px solid #30363d;border-radius:6px;
+        color:#c9d1d9;font-size:13px;font-family:inherit;
+    }
+    textarea{resize:vertical;min-height:60px;}
+    input[type=range]{padding:4px 0;background:transparent;border:none;}
+
+    /* ---- Chat ---- */
+    #chatContainer{
+        height:420px;overflow-y:auto;
+        background:#0d1117;border:1px solid #30363d;border-radius:6px;
+        padding:14px;margin-bottom:10px;
+        scroll-behavior:smooth;
+    }
+    #chatContainer::-webkit-scrollbar{width:6px;}
+    #chatContainer::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+
+    .msg{margin:6px 0;line-height:1.5;font-size:14px;padding:8px 12px;border-radius:6px;max-width:90%;}
+    .msg.user{
+        background:#1c2333;border:1px solid #30363d;
+        margin-left:auto;text-align:right;color:#e6edf3;
+    }
+    .msg.assist{
+        background:#0d2137;border:1px solid #1a3a5c;color:#7cc4f5;
+    }
+    .msg.system{
+        font-size:12px;font-style:italic;color:#484f58;
+        text-align:center;max-width:100%;background:transparent;padding:4px;
+    }
+    .msg.error{color:#f85149;background:#2d1117;border:1px solid #5a2028;}
+
+    #inputRow{display:flex;gap:8px;}
+    #userInput{
+        flex-grow:1;padding:10px 12px;
+        background:#0d1117;border:1px solid #30363d;border-radius:6px;
+        color:#c9d1d9;font-size:14px;
+    }
+    #userInput:focus{outline:none;border-color:#58a6ff;}
+
+    button{
+        padding:8px 16px;border:none;border-radius:6px;cursor:pointer;
+        font-size:13px;font-weight:600;transition:all .15s;
+    }
+    button.primary{background:#238636;color:#fff;}
+    button.primary:hover{background:#2ea043;}
+    button.primary:disabled{background:#21262d;color:#484f58;cursor:not-allowed;}
+
+    button.secondary{background:#21262d;color:#c9d1d9;border:1px solid #30363d;}
+    button.secondary:hover{background:#30363d;}
+
+    /* ---- Grid layouts ---- */
+    .row{display:flex;gap:12px;flex-wrap:wrap;}
+    .row>*{flex:1;min-width:140px;}
+
+    /* ---- Handy status ---- */
+    .status-badge{
+        display:inline-block;padding:2px 10px;border-radius:12px;
+        font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+        margin-left:8px;
+    }
+    .status-badge.connected{background:#1b4332;color:#40c057;}
+    .status-badge.disconnected{background:#3d1f1f;color:#f85149;}
+    .status-badge.connecting{background:#3d3215;color:#d29922;}
+
+    /* ---- Funscript Log ---- */
+    #funscriptLog{
+        height:120px;overflow-y:auto;
+        background:#0d1117;border:1px solid #30363d;border-radius:6px;
+        padding:10px;font-family:'Cascadia Code','Fira Code',monospace;
+        font-size:11px;color:#7ee787;margin-top:8px;
+    }
+    #funscriptLog::-webkit-scrollbar{width:6px;}
+    #funscriptLog::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+
+    .log-entry{margin:2px 0;opacity:.85;}
+    .log-entry.warn{color:#d29922;}
+    .log-entry.err{color:#f85149;}
+    .log-entry.info{color:#58a6ff;}
+
+    /* ---- Live HDSP Command Log ---- */
+    #hdspLiveLog{
+        height:160px;overflow-y:auto;
+        background:#0d1117;border:1px solid #30363d;border-radius:6px;
+        padding:10px;font-family:'Cascadia Code','Fira Code',monospace;
+        font-size:11px;color:#c9d1d9;
+    }
+    #hdspLiveLog::-webkit-scrollbar{width:6px;}
+    #hdspLiveLog::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+
+    .hdsp-cmd{
+        margin:1px 0;display:flex;gap:8px;padding:2px 4px;
+        border-radius:3px;line-height:1.4;
+    }
+    .hdsp-cmd:hover{background:#161b22;}
+    .hdsp-cmd .cmd-time{color:#484f58;min-width:72px;}
+    .hdsp-cmd .cmd-method{color:#d2a8ff;min-width:68px;}
+    .hdsp-cmd .cmd-pos{color:#7ee787;min-width:56px;}
+    .hdsp-cmd .cmd-dur{color:#ffa657;min-width:60px;}
+    .hdsp-cmd .cmd-result{min-width:40px;}
+    .hdsp-cmd .cmd-result.ok{color:#3fb950;}
+    .hdsp-cmd .cmd-result.fail{color:#f85149;}
+    .hdsp-cmd .cmd-detail{color:#484f58;}
+
+    /* ---- HDSP Data Table ---- */
+    #hdspTableWrap{
+        max-height:260px;overflow-y:auto;
+        border:1px solid #30363d;border-radius:6px;
+        margin-top:8px;
+    }
+    #hdspTableWrap::-webkit-scrollbar{width:6px;}
+    #hdspTableWrap::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+
+    #hdspTable{
+        width:100%;border-collapse:collapse;
+        font-family:'Cascadia Code','Fira Code',monospace;font-size:11px;
+    }
+    #hdspTable thead{position:sticky;top:0;z-index:1;}
+    #hdspTable th{
+        background:#1c2333;color:#58a6ff;
+        padding:6px 8px;text-align:left;font-weight:600;
+        border-bottom:2px solid #30363d;font-size:10px;
+        text-transform:uppercase;letter-spacing:.5px;
+    }
+    #hdspTable td{
+        padding:4px 8px;border-bottom:1px solid #21262d;color:#c9d1d9;
+    }
+    #hdspTable tr:hover td{background:#161b22;}
+    #hdspTable tr.active td{background:#0d2137;color:#7cc4f5;}
+    .col-idx{color:#484f58;width:35px;}
+    .col-at{color:#d2a8ff;width:70px;}
+    .col-pos{width:55px;}
+    .col-target{width:55px;}
+    .col-dur{color:#7ee787;width:65px;}
+    .col-delta{width:55px;}
+    .col-vel{color:#ffa657;width:75px;}
+    .col-dir{width:30px;text-align:center;}
+    .dir-up{color:#7ee787;}
+    .dir-dn{color:#f97583;}
+    .dir-flat{color:#484f58;}
+    #hdspEmpty{
+        padding:20px;text-align:center;color:#484f58;font-size:12px;
+        font-style:italic;
+    }
+</style>
+<script src="https://www.paypal.com/sdk/js?client-id=BAAadbuS_l2th8VihN3gxJMIYUxGxtR4nLykbtb5H8ee_sLKYEqySWMVZRlDDmFFJ5wgDXhCZ_Q_8QHvA0&components=hosted-buttons&enable-funding=venmo&currency=USD"></script>
+</head>
+<body>
+<div id="wrapper">
+
+    <!-- ===================== Title ===================== -->
+    <header id="siteTitle" style="text-align:center;margin-bottom:24px;padding:20px 10px 10px;">
+        <h1 style="font-size:32px;font-weight:700;letter-spacing:1px;
+                   background:linear-gradient(90deg,#58a6ff 0%,#bc8cff 50%,#ff7b72 100%);
+                   -webkit-background-clip:text;background-clip:text;color:transparent;
+                   margin-bottom:6px;">
+            ChatStroker v1.3
+        </h1>
+        <p style="font-size:13px;color:#8b949e;letter-spacing:0.5px;font-style:italic;">
+            Have Fun!
+        </p>
+    </header>
+
+    <!-- ===================== PreConfig ===================== -->
+    <div id="preConfig" class="section">
+        <h2>PreConfig Options</h2>
+
+        <div class="row">
+            <div>
+                <label>LM‑Studio IP address
+                    <input type="text" id="ipInput" value="192.168.1.152">
+                </label>
+            </div>
+            <div>
+                <label>Handy Connection Key
+                    <input type="text" id="handyKeyInput" placeholder="e.g. TPPoHzsN" value="TPPoHzsN">
+                </label>
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+                <button class="secondary" id="connectHandyBtn" style="width:100%;margin-top:4px;">Connect Handy</button>
+            </div>
+        </div>
+        <div style="margin-top:6px;">
+            <span style="font-size:12px;color:#8b949e;">Handy Status:</span>
+            <span id="handyStatus" class="status-badge disconnected">Disconnected</span>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+            <div>
+                <label>Funscript Duration (seconds)
+                    <input type="number" id="durationInput" value="15" min="1" max="300">
+                </label>
+            </div>
+            <div>
+                <label>Number of Points (0 = LLM chooses)
+                    <input type="number" id="pointsInput" value="0" min="0" max="500">
+                </label>
+            </div>
+        </div>
+
+        <label style="margin-top:10px;">System Prompt
+            <textarea id="systemPrompt" rows="4">
+You are roleplaying as a 30 year old female. You are a stripper. You are married. You cheat on your husband often. You are sarcastic and a jerk. You love being a tease. You are naked.
+The user is roleplaying as a 30 year old male with a massive penis. The user is sitting on a chair and your character has straddled the users lap and is looking face to face with the user. You are giving the user a lapdance.
+		
+Surround any physical actions your character makes with asterisks.
+
+You have a vagina. The user has a penis. A REAL physical stroking device is attached to the user's penis. You control this device through a "funscript" included in every response.
+
+CRITICAL UNDERSTANDING: The funscript IS your character's vagina. When your character sits on his lap and slowly lowers herself onto him — the device slowly descends. When she bounces fast — the device pumps fast. When she pulls off completely — the device goes to the 100 position. The user FEELS exactly what your character's vagina does. There is a 1:1 physical correspondence.
+
+HOW TO BUILD YOUR FUNSCRIPT — FOLLOW THIS PROCESS EVERY RESPONSE:
+Step 1: Write your roleplay "chat" text first. Describe what your character does sexually in vivid detail.
+Step 2: Re-read what you just wrote. Identify every moment your character's vagina moves on the penis. Ask yourself:
+  - When does she take him inside? How fast? How deep?
+  - Does she ride slow or fast? Does the rhythm change?
+  - Does she pause with him deep inside? Grind? Tease the tip?
+  - Does she pull off entirely at any point?
+  - Does the intensity build, stay steady, or vary?
+Step 3: Translate each of those moments into funscript points that match the TIMING and POSITION of what you described:
+  - First choose the new position to move the device
+  - Next choose the timing location in the script where you want that position to be reached.
+
+DO NOT just generate a generic up-down pattern. DO NOT ignore what your character is doing in the text. The funscript must be a faithful physical translation of your character's vaginal movements as described in your chat text.
+
+POSITION SCALE — MEMORIZE THIS:
+  pos=0   → penis is FULLY INSERTED, as deep as possible
+  pos=10  → very deep
+  pos=25  → deep
+  pos=50  → halfway inserted
+  pos 75  → shallow
+  pos=85  → very shallow, just past the tip
+  pos=95  → barely the tip inside
+  pos=100 → completely off / no contact / shallowest possible
+Lower numbers = deeper. Higher numbers = shallower.
+Moving toward pos=0 = inserting deeper. Moving toward pos=100 = pulling out.
+
+FUNSCRIPT FORMAT:
+A funscript is an array of {at, pos} objects where:
+- "at" = time in milliseconds from 0 to {DURATION_MS}
+- "pos" = position 0–100 (see scale above)
+
+The funscript covers the NEXT {DURATION} SECONDS and LOOPS continuously until replaced.
+The first point must have at=0. The last point must have at={DURATION_MS}.
+CRITICAL LOOPING RULE: The first and last points MUST have the EXACT SAME pos value for seamless looping.
+
+RULES:
+- Use at least {POINTS_INSTRUCTION} points for a {DURATION} second script.
+- If your character's vagina is NOT in contact with the penis: flat line at pos=100.
+- TIMING RULE: max duration(slowest movement) between two points = abs(pos2 - pos1) * 35ms. Example: delta of 10 → max 350ms. Delta of 100 → max 3500ms. NEVER exceed this.
+- TIMING RULE: minimum duration(fastest movement) between two points = abs(pos2 - pos1) * 10ms. Example: delta of 10 → max 100ms. Delta of 100 → max 1000ms.
+- Larger positional changes DO NOT need small movements between their start and end position. Do them in one movement where possible.
+- Be creative: vary rhythm, depth, speed, and pattern to match your character's mood, arousal, and actions.
+
+You must respond ONLY using valid JSON following this schema:
+{
+  "type": "object",
+  "properties": {
+    "chat": { "type": "string" },
+    "funscript": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "at":  { "type": "integer", "minimum": 0, "maximum": {DURATION_MS} },
+          "pos": { "type": "integer", "minimum": 0, "maximum": 100 }
+        },
+        "required": ["at", "pos"]
+      },
+      "minItems": 2
+    }
+  },
+  "required": ["chat", "funscript"],
+  "additionalProperties": false
+}
+
+Always respond in this JSON format. Do not include anything outside the JSON object.</textarea>
+        </label>
+    </div>
+
+    <!-- ===================== Chat ===================== -->
+    <div class="section">
+        <h2>Chat</h2>
+        <div id="chatContainer"></div>
+        <div id="inputRow">
+            <input type="text" id="userInput" placeholder="Type a message…" autocomplete="off">
+            <button class="primary" id="sendBtn">Send</button>
+        </div>
+    </div>
+
+    <!-- ===================== Live Options ===================== -->
+    <div class="section">
+        <h2>Live Options</h2>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="secondary" id="stopHandyBtn" style="font-size:12px;padding:6px 16px;">⏹ Stop</button>
+            <button class="secondary" id="playHandyBtn" style="font-size:12px;padding:6px 16px;">▶ Play</button>
+        </div>
+        <label>Temperature: <span id="tempVal">0.7</span>
+            <input type="range" id="tempInput" min="0" max="2" step="0.1" value="0.7">
+        </label>
+        <label style="margin-top:10px;">Stop On Target
+            <select id="stopOnTargetInput" style="width:100%;padding:8px 10px;margin-top:4px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:13px;">
+                <option value="false" selected>false — fluid motion, no pause between moves</option>
+                <option value="true">true — device stops and holds at each target</option>
+            </select>
+        </label>
+    </div>
+
+    <!-- ===================== HDSP Command Data ===================== -->
+    <div class="section">
+        <h2>HDSP Command Data</h2>
+        <div style="font-size:11px;color:#484f58;margin-bottom:6px;">
+            Raw positional, timing &amp; velocity data for each HDSP command sent to the Handy via <code style="color:#d2a8ff;">PUT /hdsp/xat</code>.
+            At each row's fire time, the device is told: "move to <em>Target</em> position in <em>Duration</em> ms".
+        </div>
+        <div id="hdspTableWrap">
+            <div id="hdspEmpty">No funscript data yet — send a chat message to generate commands.</div>
+            <table id="hdspTable" style="display:none;">
+                <thead>
+                    <tr>
+                        <th class="col-idx">#</th>
+                        <th class="col-at">Fire @</th>
+                        <th class="col-pos">From</th>
+                        <th class="col-target">To</th>
+                        <th class="col-dur">Duration</th>
+                        <th class="col-delta">Δ Pos</th>
+                        <th class="col-vel">Velocity</th>
+                        <th class="col-dir">Dir</th>
+                    </tr>
+                </thead>
+                <tbody id="hdspTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===================== Funscript Log ===================== -->
+    <div class="section">
+        <h2>Funscript &amp; Handy Log</h2>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <button class="secondary" id="clearLogBtn" style="font-size:12px;padding:4px 12px;">Clear Log</button>
+        </div>
+        <div id="funscriptLog"></div>
+    </div>
+
+    <!-- ===================== Live HDSP Command Log ===================== -->
+    <div class="section">
+        <h2>Live HDSP Commands</h2>
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+            <button class="secondary" id="clearHdspLogBtn" style="font-size:12px;padding:4px 12px;">Clear</button>
+            <label style="margin:0;display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;">
+                <input type="checkbox" id="hdspLogAutoScroll" checked style="width:auto;margin:0;">
+                Auto-scroll
+            </label>
+            <label style="margin:0;display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;">
+                <input type="checkbox" id="hdspLogPaused" style="width:auto;margin:0;">
+                Pause log
+            </label>
+            <span id="hdspCmdCount" style="margin-left:auto;font-size:11px;color:#484f58;">0 commands sent</span>
+        </div>
+        <div id="hdspLiveLog"></div>
+    </div>
+
+    <!-- ===================== Donate ===================== -->
+    <div id="donate" class="section" style="text-align:center;">
+        <h2>Support This Project</h2>
+        <div id="paypal-container-P96BGKKQXHWRL"></div>
+        <script>
+            window.addEventListener("load", function () {
+                if (window.paypal && paypal.HostedButtons) {
+                    paypal.HostedButtons({
+                        hostedButtonId: "P96BGKKQXHWRL",
+                    }).render("#paypal-container-P96BGKKQXHWRL");
+                } else {
+                    console.warn("PayPal SDK failed to load.");
+                }
+            });
+        </script>
+    </div>
+
+</div>
+
+<script>
+/* ========================================================================
+   STATE
+   ======================================================================== */
+let firstMessageSent = false;
+const messages = [];
+let apiBase = "";
+
+// Handy
+const HANDY_API = "https://www.handyfeeling.com/api/handy/v2";
+let handyKey = "";
+let handyConnected = false;
+let playbackTimer = null;
+let playbackActive = false;
+let currentFunscript = null;
+let lastFunscript = null;
+let scriptStartTime = 0;
+
+/* ========================================================================
+   UI HELPERS
+   ======================================================================== */
+function addChatMsg(role, txt){
+    const chat = document.getElementById('chatContainer');
+    const el = document.createElement('div');
+    el.className = `msg ${role}`;
+    el.textContent = txt;
+    chat.appendChild(el);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function fsLog(msg, cls=''){
+    const log = document.getElementById('funscriptLog');
+    const el = document.createElement('div');
+    el.className = `log-entry ${cls}`;
+    const ts = new Date().toLocaleTimeString('en-US',{hour12:false});
+    el.textContent = `[${ts}] ${msg}`;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+}
+
+function setHandyStatus(state){
+    const el = document.getElementById('handyStatus');
+    el.textContent = state.charAt(0).toUpperCase()+state.slice(1);
+    el.className = `status-badge ${state}`;
+}
+
+/* ========================================================================
+   SYSTEM PROMPT BUILDER — injects duration, ms, points
+   ======================================================================== */
+function buildSystemPrompt(){
+    const duration = parseInt(document.getElementById('durationInput').value) || 15;
+    const durationMs = duration * 1000;
+    const points = parseInt(document.getElementById('pointsInput').value) || 0;
+
+    let pointsInstruction;
+    if(points > 0){
+        pointsInstruction = `exactly ${points}`;
+    } else {
+        pointsInstruction = `5-60`;
+    }
+
+    let raw = document.getElementById('systemPrompt').value;
+    raw = raw.replace(/\{DURATION_MS\}/g, String(durationMs));
+    raw = raw.replace(/\{DURATION\}/g, String(duration));
+    raw = raw.replace(/\{POINTS_INSTRUCTION\}/g, pointsInstruction);
+    return raw.trim();
+}
+
+/* ========================================================================
+   HANDY API HELPERS
+   ======================================================================== */
+async function handyFetch(path, method='GET', body=null){
+    const opts = {
+        method,
+        headers:{
+            'X-Connection-Key': handyKey,
+            'Content-Type':'application/json'
+        }
+    };
+    if(body) opts.body = JSON.stringify(body);
+    const r = await fetch(`${HANDY_API}${path}`, opts);
+    return r.json();
+}
+
+async function connectHandy(){
+    handyKey = document.getElementById('handyKeyInput').value.trim();
+    if(!handyKey){ fsLog('No connection key entered','warn'); return; }
+
+    setHandyStatus('connecting');
+    fsLog(`Connecting to Handy (key: ${handyKey})…`,'info');
+
+    try{
+        const c = await handyFetch('/connected');
+        if(c.connected){
+            handyConnected = true;
+            setHandyStatus('connected');
+            fsLog('Handy is online!','info');
+
+            // Set mode to HDSP (mode 2)
+            const modeRes = await handyFetch('/mode', 'PUT', {mode:2});
+            fsLog(`Mode set to HDSP — result: ${modeRes.result}`,'info');
+        } else {
+            setHandyStatus('disconnected');
+            fsLog('Handy is not connected. Check Wi-Fi.','err');
+        }
+    }catch(e){
+        setHandyStatus('disconnected');
+        fsLog(`Connection error: ${e.message}`,'err');
+    }
+}
+
+/* ========================================================================
+   HDSP DATA TABLE — shows every command that will be sent
+   ======================================================================== */
+function populateHDSPTable(funscript){
+    const tbody = document.getElementById('hdspTableBody');
+    const table = document.getElementById('hdspTable');
+    const empty = document.getElementById('hdspEmpty');
+
+    tbody.innerHTML = '';
+
+    if(!funscript || funscript.length < 2){
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+
+    table.style.display = '';
+    empty.style.display = 'none';
+
+    // The table shows one row per HDSP command that gets sent.
+    // At point[i], we send: "move to point[i+1].pos in (point[i+1].at - point[i].at) ms"
+    // So there are (length - 1) commands per loop iteration.
+    for(let i = 0; i < funscript.length - 1; i++){
+        const current = funscript[i];
+        const next    = funscript[i + 1];
+
+        const fromPos   = current.pos;                        // device is here now
+        const targetPos = next.pos;                           // HDSP target position sent
+        const duration  = Math.max(next.at - current.at, 50); // HDSP duration sent (ms)
+
+        const delta = Math.abs(targetPos - fromPos);
+        const velocity = duration > 0 ? (delta / duration * 1000) : 0; // %/s
+        const direction = targetPos < fromPos ? 'dn' : targetPos > fromPos ? 'up' : 'flat';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="col-idx">${i}</td>
+            <td class="col-at">${current.at}ms</td>
+            <td class="col-pos">${fromPos}%</td>
+            <td class="col-target">${targetPos}%</td>
+            <td class="col-dur">${duration}ms</td>
+            <td class="col-delta">${delta}%</td>
+            <td class="col-vel">${velocity.toFixed(1)} %/s</td>
+            <td class="col-dir"><span class="dir-${direction}">${direction === 'dn' ? '▼' : direction === 'up' ? '▲' : '—'}</span></td>
+        `;
+        tbody.appendChild(tr);
+    }
+}
+
+/* Highlight the currently-playing row in the data table */
+let activeRowInterval = null;
+function startRowHighlighter(funscript, totalDuration){
+    if(activeRowInterval) clearInterval(activeRowInterval);
+    const rows = document.querySelectorAll('#hdspTableBody tr');
+    if(!rows.length) return;
+
+    activeRowInterval = setInterval(()=>{
+        if(!currentFunscript){
+            clearInterval(activeRowInterval);
+            activeRowInterval = null;
+            rows.forEach(r => r.classList.remove('active'));
+            return;
+        }
+        const elapsed = (performance.now() - scriptStartTime) % (totalDuration + 100);
+        let activeIdx = 0;
+        // Find which segment is active (table has length-1 rows)
+        for(let i = funscript.length - 2; i >= 0; i--){
+            if(elapsed >= funscript[i].at){ activeIdx = i; break; }
+        }
+        rows.forEach((r,idx) => r.classList.toggle('active', idx === activeIdx));
+    }, 100);
+}
+
+/* ========================================================================
+   VELOCITY CALCULATION & HDSP PLAYBACK
+   ======================================================================== */
+
+/*
+ * VELOCITY / TIMING EXPLANATION:
+ * ===========================================
+ * The Handy HDSP "xat" endpoint accepts:
+ *   - position: absolute target position (0-100 maps to full slide range)
+ *   - duration: time in milliseconds the device should take to reach that position
+ *   - stopOnTarget: false — device keeps moving fluidly without pausing
+ *   - immediateResponse: true — server responds immediately without waiting
+ *
+ * SCHEDULING MODEL:
+ * Given consecutive funscript points:
+ *   A = {at: t1, pos: p1}   (current point)
+ *   B = {at: t2, pos: p2}   (next point)
+ *
+ * At time t1, we send the command:
+ *   "Move to position p2 in (t2 - t1) milliseconds"
+ *
+ * This tells the device WHERE to go next and HOW LONG it has to get there.
+ * The device firmware calculates the motor speed internally:
+ *   implied velocity = |p2 - p1| / (t2 - t1)   (percent per ms)
+ *
+ * The motion perfectly fills each timing gap because each command says
+ * "arrive at position X in exactly Y ms", and the next command fires
+ * right as the previous one completes.
+ *
+ * IMPORTANT: We use a sequential setTimeout chain (each callback schedules
+ * the next) rather than pre-scheduling all at once, to avoid flooding the
+ * Handy cloud API with simultaneous requests and to maintain accurate timing.
+ */
+
+function scheduleFunscript(funscript){
+    // Stop any existing playback
+    stopPlayback();
+
+    if(!funscript || funscript.length < 2){
+        fsLog('Funscript has fewer than 2 points, skipping.','warn');
+        return;
+    }
+
+    // Sort by time
+    funscript.sort((a,b) => a.at - b.at);
+
+    // Validate loop: first and last pos must match
+    const firstPos = funscript[0].pos;
+    const lastPos  = funscript[funscript.length - 1].pos;
+    if(firstPos !== lastPos){
+        fsLog(`Loop mismatch: first pos=${firstPos}, last pos=${lastPos}. Auto-correcting last point to ${firstPos}.`,'warn');
+        funscript[funscript.length - 1].pos = firstPos;
+    }
+
+    currentFunscript = funscript;
+    lastFunscript = funscript.map(p => ({at:p.at, pos:p.pos}));
+
+    const totalDuration = funscript[funscript.length - 1].at;
+    fsLog(`Scheduling ${funscript.length} points over ${totalDuration}ms (loop enabled)`,'info');
+
+    // Populate the raw data table
+    populateHDSPTable(funscript);
+
+    // Start the sequential playback chain
+    playbackActive = true;
+    scriptStartTime = performance.now();
+    playNextPoint(funscript, 0, totalDuration);
+
+    // Start row highlighter for live tracking
+    startRowHighlighter(funscript, totalDuration);
+}
+
+/*
+ * Sequential playback: at point index i, we tell the device to move
+ * to the NEXT point's position, with a duration equal to the time gap.
+ * Then we schedule the next step after that gap elapses.
+ */
+function playNextPoint(funscript, index, totalDuration){
+    if(!playbackActive) return;
+
+    const current = funscript[index];
+    const nextIndex = index + 1;
+
+    if(nextIndex < funscript.length){
+        const next = funscript[nextIndex];
+        const duration = Math.max(next.at - current.at, 50);
+
+        // Look ahead: check if the command AFTER this one has no position change
+        const afterNextIndex = nextIndex + 1;
+        let forceStopOnTarget = false;
+        let skipNext = false;
+
+        if(afterNextIndex < funscript.length){
+            const afterNext = funscript[afterNextIndex];
+            if(afterNext.pos === next.pos){
+                // Next command would be a no-move, so force stopOnTarget on
+                // this command and skip sending the next one
+                forceStopOnTarget = true;
+                skipNext = true;
+            }
+        }
+
+        sendHDSP(next.pos, duration, current.pos, forceStopOnTarget);
+
+        if(skipNext && afterNextIndex < funscript.length){
+            // Skip the next point — jump ahead to afterNext, but wait the
+            // combined duration of both segments
+            const skippedDuration = funscript[afterNextIndex].at - next.at;
+            const totalWait = duration + Math.max(skippedDuration, 50);
+
+            playbackTimer = setTimeout(() => {
+                playNextPoint(funscript, afterNextIndex, totalDuration);
+            }, totalWait);
+        } else {
+            playbackTimer = setTimeout(() => {
+                playNextPoint(funscript, nextIndex, totalDuration);
+            }, duration);
+        }
+
+    } else {
+        fsLog('Looping funscript…','info');
+        scriptStartTime = performance.now();
+        playbackTimer = setTimeout(() => {
+            playNextPoint(funscript, 0, totalDuration);
+        }, 50);
+    }
+}
+
+async function sendHDSP(positionPercent, durationMs, previousPos, forceStopOnTarget){
+    if(!handyConnected) return;
+
+    // Clamp values — position is 0-100 percentage, duration in ms
+    const pos = Math.min(100, Math.max(0, Math.round(positionPercent)));
+    const prevPos = previousPos !== undefined ? Math.round(previousPos) : null;
+    const dur = Math.round(Math.max(50, durationMs));
+    const sendTime = performance.now();
+
+    // Track command count
+    if(!sendHDSP._cmdCount) sendHDSP._cmdCount = 0;
+    sendHDSP._cmdCount++;
+    const cmdNum = sendHDSP._cmdCount;
+
+    // stopOnTarget logic:
+    // - Force true if explicitly requested (next command has no position change)
+    // - Force true if current position hasn't changed (holding in place)
+    // - Otherwise use the dropdown setting
+    let stopOnTarget;
+    if(forceStopOnTarget || (prevPos !== null && prevPos === pos)){
+        stopOnTarget = true;
+    } else {
+        stopOnTarget = document.getElementById('stopOnTargetInput').value === 'true';
+    }
+
+    const body = {
+        stopOnTarget: stopOnTarget,
+        immediateResponse: true,
+        duration: dur,
+        position: pos
+    };
+
+    try{
+        const resp = await handyFetch('/hdsp/xat', 'PUT', body);
+        const latency = Math.round(performance.now() - sendTime);
+        const respStr = JSON.stringify(resp);
+        hdspLiveLogEntry(cmdNum, pos, dur, 'ok', latency, respStr, body);
+    }catch(e){
+        const latency = Math.round(performance.now() - sendTime);
+        hdspLiveLogEntry(cmdNum, pos, dur, 'fail', latency, e.message, body);
+
+        // Also log to main log sparingly
+        if(!sendHDSP._errCount) sendHDSP._errCount = 0;
+        sendHDSP._errCount++;
+        if(sendHDSP._errCount <= 3 || sendHDSP._errCount % 20 === 0){
+            fsLog(`HDSP error #${sendHDSP._errCount}: ${e.message}`,'err');
+        }
+    }
+}
+
+/* ---- Live HDSP log helper ---- */
+function hdspLiveLogEntry(cmdNum, pos, dur, status, latencyMs, detail, body){
+    const paused = document.getElementById('hdspLogPaused')?.checked;
+    if(paused) return;
+
+    const log = document.getElementById('hdspLiveLog');
+    const autoScroll = document.getElementById('hdspLogAutoScroll')?.checked;
+
+    const ts = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',fractionalSecondDigits:1});
+
+    const el = document.createElement('div');
+    el.className = 'hdsp-cmd';
+    const bodyStr = body ? JSON.stringify(body) : '';
+    el.innerHTML = `<span class="cmd-time">${ts}</span>`
+        + `<span class="cmd-method">PUT xat</span>`
+        + `<span class="cmd-pos">pos:${pos}%</span>`
+        + `<span class="cmd-dur">${dur}ms</span>`
+        + `<span class="cmd-result ${status}">${status === 'ok' ? '✓' : '✗'}</span>`
+        + `<span class="cmd-detail">${latencyMs}ms · ${bodyStr}</span>`
+        + `<br><span class="cmd-detail" style="margin-left:80px;">→ ${detail || ''}</span>`;
+
+    log.appendChild(el);
+
+    // Keep log from growing unbounded (max ~300 entries)
+    while(log.children.length > 300){
+        log.removeChild(log.firstChild);
+    }
+
+    if(autoScroll) log.scrollTop = log.scrollHeight;
+
+    // Update counter
+    const counter = document.getElementById('hdspCmdCount');
+    if(counter) counter.textContent = `${cmdNum} commands sent`;
+}
+
+function stopPlayback(){
+    playbackActive = false;
+    if(playbackTimer){
+        clearTimeout(playbackTimer);
+        playbackTimer = null;
+    }
+    if(activeRowInterval){
+        clearInterval(activeRowInterval);
+        activeRowInterval = null;
+    }
+    currentFunscript = null;
+
+    // Send immediate stop command to the device
+    if(handyConnected){
+        handyFetch('/hdsp/xat', 'PUT', {
+            stopOnTarget: true,
+            immediateResponse: true,
+            duration: 40,
+            position: 100
+        }).then(()=>{
+            fsLog('Stop command sent — position 100, 40ms','warn');
+        }).catch(e=>{
+            fsLog(`Stop command failed: ${e.message}`,'err');
+        });
+    }
+
+    fsLog('Playback stopped.','warn');
+}
+
+/* ========================================================================
+   PARSE LLM RESPONSE — extract chat + funscript
+   ======================================================================== */
+function parseLLMResponse(raw){
+    let chatText = raw;
+    let funscript = null;
+
+    try{
+        // Try parsing entire response as JSON
+        const parsed = JSON.parse(raw);
+        if(parsed.chat !== undefined){
+            chatText = parsed.chat;
+        }
+        if(Array.isArray(parsed.funscript)){
+            funscript = parsed.funscript;
+        }
+    }catch(e){
+        // Try to find JSON embedded in the response
+        const jsonMatch = raw.match(/\{[\s\S]*"funscript"\s*:\s*\[[\s\S]*\][\s\S]*\}/);
+        if(jsonMatch){
+            try{
+                const parsed = JSON.parse(jsonMatch[0]);
+                if(parsed.chat !== undefined) chatText = parsed.chat;
+                if(Array.isArray(parsed.funscript)) funscript = parsed.funscript;
+            }catch(e2){
+                fsLog('Could not parse embedded JSON','warn');
+            }
+        } else {
+            fsLog('Response was not valid JSON — showing as plain text','warn');
+        }
+    }
+
+    return {chatText, funscript};
+}
+
+/* ========================================================================
+   SEND MESSAGE
+   ======================================================================== */
+async function sendMessage(){
+    const inputEl = document.getElementById('userInput');
+    const text = inputEl.value.trim();
+    if(!text) return;
+
+    setBusy(true);
+
+    /* First message: lock PreConfig, build system prompt */
+    if(!firstMessageSent){
+        firstMessageSent = true;
+        const ip = document.getElementById('ipInput').value.trim() || '192.168.1.152';
+        apiBase = `http://${ip}:1234/v1`;
+
+        const sysPrompt = buildSystemPrompt();
+        if(sysPrompt){
+            messages.push({role:'system', content:sysPrompt});
+            addChatMsg('system','[System prompt configured]');
+            fsLog('System prompt locked with duration=' +
+                  document.getElementById('durationInput').value + 's, points=' +
+                  (document.getElementById('pointsInput').value || 'auto'),'info');
+        }
+        document.getElementById('preConfig').classList.add('disabled');
+    }
+
+    addChatMsg('user', text);
+    messages.push({role:'user', content:text});
+    inputEl.value = '';
+
+    const payload = {
+        model: "lmstudio-community/any-model",
+        temperature: parseFloat(document.getElementById('tempInput').value),
+        messages: [...messages]
+    };
+
+    try{
+        const r = await fetch(`${apiBase}/chat/completions`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(payload)
+        });
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        const rawReply = d?.choices?.[0]?.message?.content ?? '[no response]';
+
+        // Parse: separate chat from funscript
+        const {chatText, funscript} = parseLLMResponse(rawReply);
+
+        // Show only chat portion
+        addChatMsg('assist', chatText);
+        messages.push({role:'assistant', content:rawReply});
+
+        // Handle funscript
+        if(funscript && funscript.length >= 2){
+            fsLog(`Received funscript with ${funscript.length} points`,'info');
+
+            // Log velocity details for a few segments
+            for(let i = 0; i < Math.min(funscript.length - 1, 5); i++){
+                const a = funscript[i], b = funscript[i+1];
+                const dt = b.at - a.at;
+                const dp = Math.abs(b.pos - a.pos);
+                const vel = dt > 0 ? (dp / dt * 1000).toFixed(1) : '∞';
+                fsLog(`  Seg ${i}: pos ${a.pos}→${b.pos} in ${dt}ms (${vel} %/s)`);
+            }
+            if(funscript.length > 6) fsLog(`  … and ${funscript.length - 5} more segments`);
+
+            if(handyConnected){
+                scheduleFunscript(funscript);
+            } else {
+                // Still populate the data table even without a device
+                funscript.sort((a,b) => a.at - b.at);
+                const fp = funscript[0].pos, lp = funscript[funscript.length-1].pos;
+                if(fp !== lp){
+                    fsLog(`Loop mismatch: first pos=${fp}, last pos=${lp}. Auto-correcting last point to ${fp}.`,'warn');
+                    funscript[funscript.length-1].pos = fp;
+                }
+                populateHDSPTable(funscript);
+                fsLog('Handy not connected — funscript parsed but not sent','warn');
+            }
+        } else if(funscript){
+            fsLog('Funscript too short (< 2 points)','warn');
+        }
+
+    }catch(e){
+        console.error(e);
+        addChatMsg('error', `Error: ${e.message}`);
+    }finally{
+        setBusy(false);
+        inputEl.focus();
+    }
+}
+
+/* ========================================================================
+   UI EVENTS
+   ======================================================================== */
+document.getElementById('tempInput').addEventListener('input', e=>{
+    document.getElementById('tempVal').textContent = e.target.value;
+});
+
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('userInput')
+    .addEventListener('keypress', ev=>{ if(ev.key==='Enter'){ev.preventDefault();sendMessage();}});
+
+document.getElementById('connectHandyBtn').addEventListener('click', connectHandy);
+document.getElementById('stopHandyBtn').addEventListener('click', stopPlayback);
+document.getElementById('playHandyBtn').addEventListener('click', ()=>{
+    if(lastFunscript && lastFunscript.length >= 2){
+        if(handyConnected){
+            scheduleFunscript([...lastFunscript]);
+        } else {
+            fsLog('Handy not connected — cannot play','warn');
+        }
+    } else {
+        fsLog('No funscript available to play','warn');
+    }
+});
+document.getElementById('clearLogBtn').addEventListener('click', ()=>{
+    document.getElementById('funscriptLog').innerHTML = '';
+});
+
+document.getElementById('clearHdspLogBtn').addEventListener('click', ()=>{
+    document.getElementById('hdspLiveLog').innerHTML = '';
+    document.getElementById('hdspCmdCount').textContent = '0 commands sent';
+    if(sendHDSP._cmdCount) sendHDSP._cmdCount = 0;
+});
+
+function setBusy(b){
+    document.getElementById('sendBtn').disabled = b;
+    document.getElementById('userInput').disabled = b;
+}
+</script>
+</body>
+</html>
