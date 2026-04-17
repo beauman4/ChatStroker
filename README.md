@@ -29,4 +29,12 @@ Send your first message — the config locks in and the session begins
 Support
 If ChatStroker made your evening more interesting, consider buying the developer a coffee ☕ via the donate button at the bottom of the page.
 Disclaimer
-For adults only (18+). Use responsibly. This is a hobbyist project and not affiliated with LM Studio, The Handy, or Sweet Tech AS.
+For adults only (18+). Use responsibly. This is a hobbyist project and not affiliated with LM Studio or The Handy.
+
+## Support the Project
+
+If ChatStroker made your evening more interesting, consider supporting development:
+
+[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/ncp/payment/P96BGKKQXHWRL)
+
+Every donation helps cover development time and keeps the project moving. Thank you! ☕
