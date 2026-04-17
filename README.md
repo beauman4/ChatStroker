@@ -22,7 +22,7 @@ A modern browser (Chrome, Firefox, Edge)
 Quick Start
 
 Launch LM Studio and start the local server
-Open chat3_0.html in your browser
+Open chatstroker1.3.html in your browser
 Fill in PreConfig Options (LM Studio IP, Handy settings, persona, etc.)
 Send your first message — the config locks in and the session begins
 
